@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #f4f2ee; color: #1b1a17; font-family: "Schibsted Grotesk", "Helvetica Neue", Helvetica, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #2c6e49; }
+  a:hover { color: #1f5236; }
+  input, select, button { font: inherit; color: inherit; }
+  ::placeholder { color: #9a9389; }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#f4f2ee">
+
+  <header style="max-width:1240px;margin:0 auto;padding:28px 20px 12px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px">
+    <div style="min-width:0">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8a8378">Poing · PLZ 85586</div>
+      <h1 style="margin:4px 0 0;font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-0.02em">Wochenangebote</h1>
+      <p style="margin:6px 0 0;font-size:14px;color:#6f6a61;max-width:52ch;text-wrap:pretty">EDEKA, REWE, ALDI SÜD, Lidl und Kaufland an einem Ort — verglichen nach Grundpreis.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-start;gap:10px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a8378">{{ updatedLabel }}</div>
+      <div style="display:flex;gap:4px;padding:4px;background:#e9e5dd;border-radius:999px">
+        <button type="button" onClick="{{ showList }}" style="{{ tabListStyle }}">Alle Angebote</button>
+        <button type="button" onClick="{{ showCompare }}" style="{{ tabCompareStyle }}">Preisvergleich</button>
+      </div>
+    </div>
+  </header>
+
+  <div style="position:sticky;top:0;z-index:20;background:rgba(244,242,238,0.92);backdrop-filter:blur(8px);border-bottom:1px solid #e4dfd5">
+    <div style="max-width:1240px;margin:0 auto;padding:12px 20px;display:flex;flex-direction:column;gap:10px">
+
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <div style="position:relative;flex:1 1 260px;min-width:200px;display:flex;align-items:center">
+          <span style="position:absolute;left:12px;font-size:13px;color:#9a9389;pointer-events:none">Suche</span>
+          <input type="search" value="{{ q }}" onInput="{{ onSearch }}" placeholder="Milch, Butter, Hackfleisch …" style="width:100%;padding:10px 12px 10px 62px;background:#fff;border:1px solid #ddd7cb;border-radius:10px;font-size:14px;outline:none" />
+        </div>
+        <select onChange="{{ onDept }}" value="{{ dept }}" style="padding:10px 12px;background:#fff;border:1px solid #ddd7cb;border-radius:10px;font-size:13px">
+          <option value="">Alle Abteilungen</option>
+          <sc-for list="{{ departments }}" as="d" hint-placeholder-count="4">
+            <option value="{{ d }}">{{ d }}</option>
+          </sc-for>
+        </select>
+        <select onChange="{{ onSort }}" value="{{ sortMode }}" style="padding:10px 12px;background:#fff;border:1px solid #ddd7cb;border-radius:10px;font-size:13px">
+          <option value="ref-asc">Grundpreis günstigst</option>
+          <option value="price-asc">Preis aufsteigend</option>
+          <option value="price-desc">Preis absteigend</option>
+          <option value="discount-desc">Höchster Rabatt</option>
+          <option value="product-asc">Produkt A–Z</option>
+          <option value="store-asc">Markt A–Z</option>
+        </select>
+        <select onChange="{{ onGroup }}" value="{{ groupBy }}" style="padding:10px 12px;background:#fff;border:1px solid #ddd7cb;border-radius:10px;font-size:13px">
+          <option value="week">Gruppen: Woche</option>
+          <option value="department">Gruppen: Abteilung</option>
+          <option value="store">Gruppen: Markt</option>
+          <option value="none">Ohne Gruppen</option>
+        </select>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <sc-for list="{{ storeChips }}" as="chip" hint-placeholder-count="5">
+          <button type="button" onClick="{{ chip.toggle }}" style="{{ chip.style }}">
+            <span style="width:8px;height:8px;border-radius:999px;background:{{ chip.dot }}"></span>
+            <span>{{ chip.name }}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:0.6">{{ chip.count }}</span>
+          </button>
+        </sc-for>
+        <div style="flex:1 1 auto"></div>
+        <button type="button" onClick="{{ toggleActive }}" style="{{ activeToggleStyle }}">{{ activeToggleLabel }}</button>
+        <button type="button" onClick="{{ reset }}" style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:transparent;border:1px solid transparent;border-radius:999px;font-size:13px;color:#6f6a61;cursor:pointer" style-hover="border-color:#ddd7cb;color:#1b1a17">Zurücksetzen</button>
+      </div>
+
+    </div>
+  </div>
+
+  <main style="max-width:1240px;margin:0 auto;padding:16px 20px 64px">
+
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:4px 0 14px;font-size:13px;color:#6f6a61">
+      <div><span style="font-weight:600;color:#1b1a17">{{ resultCount }}</span> {{ resultNoun }}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px">{{ contextLabel }}</div>
+    </div>
+
+    <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:30px">
+        <sc-for list="{{ groups }}" as="group" hint-placeholder-count="2">
+          <section>
+            <div style="display:flex;align-items:baseline;gap:10px;padding-bottom:10px;margin-bottom:14px;border-bottom:1px solid #e4dfd5">
+              <h2 style="margin:0;font-size:15px;font-weight:600;letter-spacing:-0.01em">{{ group.label }}</h2>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a8378">{{ group.sub }}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,258px),1fr));gap:12px">
+              <sc-for list="{{ group.offers }}" as="o" hint-placeholder-count="6">
+                <article onClick="{{ o.openLink }}" style="display:flex;flex-direction:column;gap:6px;background:#fff;border:1px solid #e4dfd5;border-radius:14px;padding:14px;opacity:{{ o.opacity }};cursor:{{ o.cursor }}" style-hover="border-color:#c9c1b2">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                    <span style="display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:{{ o.color }}">
+                      <span style="width:7px;height:7px;border-radius:999px;background:{{ o.color }}"></span>{{ o.store }}
+                    </span>
+                    <sc-if value="{{ o.discount }}" hint-placeholder-val="{{ true }}">
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:2px 7px;border-radius:999px;background:#fbeae2;color:#a8401d">{{ o.discount }}</span>
+                    </sc-if>
+                    <sc-if value="{{ o.refDiscount }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:2px 7px;border-radius:999px;background:#fdf1e3;color:#a86a1d">{{ o.refDiscount }}</span>
+                    </sc-if>
+                    <sc-if value="{{ o.expiredBadge }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:2px 7px;border-radius:999px;background:#e9e5dd;color:#6f6a61">{{ o.expiredBadge }}</span>
+                    </sc-if>
+                  </div>
+                  <sc-if value="{{ o.image }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;align-items:center;justify-content:center;height:130px;background:#fff;border-radius:8px;margin:4px 0">
+                      <img src="{{ o.image }}" alt="{{ o.product }}" loading="lazy" referrerpolicy="no-referrer" style="max-width:100%;max-height:100%;object-fit:contain" />
+                    </div>
+                  </sc-if>
+                  <div style="font-size:15px;font-weight:600;line-height:1.25;letter-spacing:-0.01em;text-wrap:pretty">{{ o.product }}</div>
+                  <sc-if value="{{ o.brand }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-size:12px;color:#6f6a61">{{ o.brand }}</div>
+                  </sc-if>
+                  <sc-if value="{{ o.description }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-size:12px;line-height:1.4;color:#8a8378;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ o.description }}</div>
+                  </sc-if>
+                  <div style="margin-top:auto;padding-top:10px;display:flex;align-items:flex-end;justify-content:space-between;gap:8px">
+                    <div style="display:flex;align-items:baseline;gap:7px">
+                      <span style="font-size:22px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums">{{ o.price }}</span>
+                      <sc-if value="{{ o.oldPrice }}" hint-placeholder-val="{{ true }}">
+                        <span style="font-size:12px;color:#a8a196;text-decoration:line-through">{{ o.oldPrice }}</span>
+                      </sc-if>
+                    </div>
+                    <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6f6a61;line-height:1.3">
+                      <div>{{ o.ref }}</div>
+                      <div style="color:#a8a196">{{ o.pack }}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:{{ o.validColor }}">
+                    <span style="width:5px;height:5px;border-radius:999px;background:{{ o.validColor }}"></span>{{ o.valid }}
+                  </div>
+                </article>
+              </sc-for>
+            </div>
+          </section>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ hasMore }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;justify-content:center;padding:34px 0 0">
+          <button type="button" onClick="{{ showMore }}" style="padding:11px 22px;background:#1b1a17;color:#f4f2ee;border:none;border-radius:999px;font-size:14px;font-weight:500;cursor:pointer" style-hover="background:#2c6e49">{{ moreLabel }}</button>
+        </div>
+      </sc-if>
+    </sc-if>
+
+    <sc-if value="{{ isCompare }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:12px">
+        <sc-for list="{{ compareGroups }}" as="c" hint-placeholder-count="4">
+          <article style="background:#fff;border:1px solid #e4dfd5;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+              <div style="min-width:0">
+                <div style="font-size:15px;font-weight:600;line-height:1.25;letter-spacing:-0.01em;text-wrap:pretty">{{ c.product }}</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#8a8378;margin-top:3px">Grundpreis je {{ c.unit }} · {{ c.storeCount }} Märkte</div>
+              </div>
+              <sc-if value="{{ c.savings }}" hint-placeholder-val="{{ true }}">
+                <span style="white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:3px 8px;border-radius:999px;background:#e9f0ea;color:#2c6e49">−{{ c.savings }}</span>
+              </sc-if>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <sc-for list="{{ c.rows }}" as="r" hint-placeholder-count="3">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+                    <span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:{{ r.weight }};color:{{ r.storeColor }}">
+                      <span style="width:7px;height:7px;border-radius:999px;background:{{ r.dot }}"></span>{{ r.store }}
+                    </span>
+                    <span style="font-size:14px;font-weight:{{ r.weight }};font-variant-numeric:tabular-nums;white-space:nowrap">{{ r.refPrice }}</span>
+                  </div>
+                  <div style="height:5px;background:#f0ece4;border-radius:999px;overflow:hidden">
+                    <div style="{{ r.barStyle }}"></div>
+                  </div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8a8378">{{ r.detail }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </article>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+      <div style="text-align:center;padding:64px 20px;color:#8a8378">
+        <div style="font-size:16px;font-weight:600;color:#1b1a17">Keine Angebote gefunden</div>
+        <p style="margin:6px 0 0;font-size:13px">Suchbegriff ändern, Abteilung weiten oder mehr Märkte aktivieren.</p>
+      </div>
+    </sc-if>
+
+  </main>
+
+  <footer style="max-width:1240px;margin:0 auto;padding:0 20px 40px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#a8a196">
+    Datenquelle marktguru.de · Aktualisieren mit python3 fetch_angebote.py
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = {
+    ready: false,
+    offers: [],
+    updated: null,
+    view: "list",
+    q: "",
+    dept: "",
+    sortMode: "ref-asc",
+    groupBy: "week",
+    onlyActive: true,
+    off: {},
+    limit: 240,
+  };
+
+  componentDidMount() { this.loadData(); }
+
+  async loadData() {
+    try {
+      const src = await (await fetch("./data.js")).text();
+      const read = new Function(src + "\nreturn { offers: ANGEBOTE, updated: typeof ANGEBOTE_UPDATED !== 'undefined' ? ANGEBOTE_UPDATED : null };");
+      const out = read();
+      this.setState({ offers: out.offers || [], updated: out.updated, ready: true });
+    } catch (err) {
+      console.error("Angebote konnten nicht geladen werden", err);
+      this.setState({ ready: true });
+    }
+  }
+
+  data() { return this.state.offers; }
+
+  storeColor(store) {
+    const map = {
+      "EDEKA": "oklch(0.52 0.11 150)",
+      "REWE": "oklch(0.52 0.13 25)",
+      "ALDI SÜD": "oklch(0.52 0.11 250)",
+      "Lidl": "oklch(0.52 0.11 75)",
+      "Kaufland": "oklch(0.52 0.12 330)",
+    };
+    return map[store] || "oklch(0.52 0.02 90)";
+  }
+
+  eur(v) {
+    if (v == null) return "";
+    return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+  }
+  num(n) { return Number(n.toFixed(2)).toLocaleString("de-DE"); }
+  dShort(d) { return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }); }
+
+  packSize(o) {
+    const total = (o.quantity ?? 1) * (o.volume ?? 1);
+    if (!total) return "";
+    if (o.unit === "kg") return total < 1 ? Math.round(total * 1000) + " g" : this.num(total) + " kg";
+    if (o.unit === "l") return total < 1 ? Math.round(total * 1000) + " ml" : this.num(total) + " l";
+    if (o.unit === "Stk") return this.num(total) + " Stk";
+    return o.unit ? this.num(total) + " " + o.unit : "";
+  }
+
+  validity(o) {
+    const now = new Date();
+    const from = o.validFrom ? new Date(o.validFrom) : null;
+    const until = o.validUntil ? new Date(o.validUntil) : null;
+    if (!from && !until) return { text: "ohne Datum", color: "#a8a196" };
+    if (from && from > now) {
+      const days = Math.ceil((from - now) / 86400000);
+      return { text: "ab " + this.dShort(from) + (days <= 7 ? " (in " + days + " T.)" : ""), color: "#8a8378" };
+    }
+    if (until && until < now) return { text: "abgelaufen " + this.dShort(until), color: "#a8a196" };
+    if (until) {
+      const days = Math.ceil((until - now) / 86400000);
+      if (days <= 1) return { text: "läuft heute ab", color: "#a8401d" };
+      if (days === 2) return { text: "nur noch morgen", color: "#a8401d" };
+      return { text: "gültig bis " + this.dShort(until), color: "#2c6e49" };
+    }
+    return { text: "gültig ab " + this.dShort(from), color: "#2c6e49" };
+  }
+
+  isActive(o) {
+    const now = new Date();
+    const from = o.validFrom ? new Date(o.validFrom) : null;
+    const until = o.validUntil ? new Date(o.validUntil) : null;
+    if (from && from > now) return false;
+    if (until && until < now) return false;
+    return true;
+  }
+
+  // Vergangene Wochen (abgelaufene Angebote, reine Grundpreis-Einträge) erscheinen nur im Preisvergleich.
+  isPast(o) {
+    if (o.expired) return true;
+    const until = o.validUntil ? new Date(o.validUntil) : null;
+    return !!(until && until < new Date());
+  }
+
+  monday(date) {
+    const d = new Date(date); d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    d.setDate(d.getDate() + ((day === 0 ? -6 : 1) - day));
+    return d;
+  }
+  isoWeek(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  }
+  weeksFor(o) {
+    const from = o.validFrom ? new Date(o.validFrom) : null;
+    const until = o.validUntil ? new Date(o.validUntil) : null;
+    if (!from && !until) return [{ key: "x", label: "Ohne Datum", sub: "", order: 8.64e15 }];
+    const start = this.monday(from || until), end = this.monday(until || from);
+    const out = [], cur = new Date(start), thisMon = this.monday(new Date());
+    while (cur <= end && out.length < 12) {
+      const sun = new Date(cur); sun.setDate(sun.getDate() + 6);
+      const isNow = cur.getTime() === thisMon.getTime();
+      out.push({
+        key: cur.toISOString().slice(0, 10),
+        label: isNow ? "Diese Woche · KW " + this.isoWeek(cur) : "KW " + this.isoWeek(cur),
+        sub: this.dShort(cur) + "–" + this.dShort(sun),
+        order: cur.getTime(),
+      });
+      cur.setDate(cur.getDate() + 7);
+    }
+    return out;
+  }
+
+  cmp(o) { return o.referencePrice ?? o.price ?? 0; }
+  discountPct(o) {
+    if (o.oldPrice != null && o.price != null && o.oldPrice > o.price) {
+      return Math.round((1 - o.price / o.oldPrice) * 100);
+    }
+    return 0;
+  }
+
+  filtered() {
+    const q = this.state.q.trim().toLowerCase();
+    const off = this.state.off;
+    return this.data().filter((o) => {
+      if (off[o.store]) return false;
+      if (this.state.dept && o.department !== this.state.dept) return false;
+      if (this.state.view === "list" && this.isPast(o)) return false;
+      if (this.state.onlyActive && !this.isPast(o) && !this.isActive(o)) return false;
+      if (!q) return true;
+      return [o.product, o.brand, o.description, o.category].filter(Boolean).join(" ").toLowerCase().includes(q);
+    });
+  }
+
+  sortList(list) {
+    const s = [...list];
+    const byName = (a, b) => (a.product || "").localeCompare(b.product || "", "de");
+    switch (this.state.sortMode) {
+      case "price-asc": s.sort((a, b) => (a.price ?? 0) - (b.price ?? 0)); break;
+      case "price-desc": s.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)); break;
+      case "discount-desc": s.sort((a, b) => this.discountPct(b) - this.discountPct(a) || byName(a, b)); break;
+      case "product-asc": s.sort(byName); break;
+      case "store-asc": s.sort((a, b) => (a.store || "").localeCompare(b.store || "", "de") || byName(a, b)); break;
+      default: s.sort((a, b) => this.cmp(a) - this.cmp(b)); break;
+    }
+    return s;
+  }
+
+  cardVM(o) {
+    const v = this.validity(o);
+    const pct = this.discountPct(o);
+    const basisShort = { "eigene Historie": "hist. Ø", "BMEL-Referenz": "BMEL-Ø" };
+    return {
+      store: o.store, color: this.storeColor(o.store),
+      product: o.product, image: o.image || "", brand: o.brand || "", description: o.description || "",
+      price: this.eur(o.price),
+      oldPrice: o.oldPrice != null && o.oldPrice > (o.price ?? 0) ? this.eur(o.oldPrice) : "",
+      discount: pct >= 5 ? "−" + pct + "%" : "",
+      refDiscount: (pct < 5 && o.referenceDiscountPct)
+        ? "−" + o.referenceDiscountPct + "% ggü. " + (basisShort[o.referenceDiscountBasis] || "Ø")
+        : "",
+      expiredBadge: o.expired ? "nur Grundpreis" : "",
+      ref: o.referencePrice != null && o.unit ? this.eur(o.referencePrice) + "/" + o.unit : "",
+      pack: o.price != null ? this.packSize(o) : "",
+      valid: v.text, validColor: v.color,
+      opacity: o.expired ? "0.72" : "1",
+      cursor: o.url ? "pointer" : "default",
+      openLink: () => { if (o.url) window.open(o.url, "_blank", "noopener"); },
+    };
+  }
+
+  buildGroups(sorted) {
+    const mode = this.state.groupBy;
+    if (mode === "none") {
+      return [{ label: "Alle Treffer", sub: sorted.length + " Angebote", offers: sorted.map((o) => this.cardVM(o)) }];
+    }
+    const map = new Map();
+    sorted.forEach((o) => {
+      let keys;
+      if (mode === "week") keys = this.weeksFor(o);
+      else if (mode === "store") keys = [{ key: o.store || "?", label: o.store || "Ohne Markt", sub: "", order: 0 }];
+      else keys = [{ key: o.department || "Sonstiges", label: o.department || "Sonstiges", sub: "", order: 0 }];
+      keys.forEach((k) => {
+        if (!map.has(k.key)) map.set(k.key, { label: k.label, sub: k.sub, order: k.order, offers: [] });
+        map.get(k.key).offers.push(o);
+      });
+    });
+    let groups = [...map.values()];
+    if (mode === "week") groups.sort((a, b) => a.order - b.order);
+    else groups.sort((a, b) => (a.label === "Sonstiges" ? 1 : b.label === "Sonstiges" ? -1 : a.label.localeCompare(b.label, "de")));
+    return groups.map((g) => ({
+      label: g.label,
+      sub: g.sub ? g.sub + " · " + g.offers.length + " Angebote" : g.offers.length + " Angebote",
+      offers: g.offers.map((o) => this.cardVM(o)),
+    }));
+  }
+
+  buildCompare(list) {
+    const byKey = new Map();
+    list.forEach((o) => {
+      const p = (o.product || "").trim().toLowerCase();
+      if (!p) return;
+      const key = p + "|" + (o.unit || "?").trim().toLowerCase();
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key).push(o);
+    });
+    const groups = [];
+    byKey.forEach((entries) => {
+      const best = new Map();
+      entries.forEach((o) => {
+        const cur = best.get(o.store);
+        if (!cur || this.cmp(o) < this.cmp(cur)) best.set(o.store, o);
+      });
+      if (best.size < 2) return;
+      const rows = [...best.values()].sort((a, b) => this.cmp(a) - this.cmp(b));
+      const min = this.cmp(rows[0]), max = this.cmp(rows[rows.length - 1]);
+      groups.push({
+        product: rows[0].product,
+        unit: rows[0].unit || "Stk",
+        storeCount: rows.length,
+        savingsValue: max - min,
+        savings: max - min > 0.004 ? this.eur(max - min) + "/" + (rows[0].unit || "Stk") : "",
+        rows: rows.map((o, i) => {
+          const v = this.validity(o);
+          const pct = max > 0 ? Math.max(8, Math.round((this.cmp(o) / max) * 100)) : 8;
+          const col = i === 0 ? "#2c6e49" : "#1b1a17";
+          return {
+            store: o.store, storeColor: col, dot: this.storeColor(o.store),
+            weight: i === 0 ? 700 : 500,
+            refPrice: o.referencePrice != null && o.unit ? this.eur(o.referencePrice) + "/" + o.unit : this.eur(o.price),
+            barStyle: "height:100%;width:" + pct + "%;border-radius:999px;background:" + (i === 0 ? "oklch(0.52 0.11 150)" : "#c9c1b2"),
+            detail: [this.eur(o.price) + (this.packSize(o) ? " für " + this.packSize(o) : ""), v.text].join(" · "),
+          };
+        }),
+      });
+    });
+    const s = this.state.sortMode === "product-asc"
+      ? groups.sort((a, b) => a.product.localeCompare(b.product, "de"))
+      : groups.sort((a, b) => b.savingsValue - a.savingsValue || a.product.localeCompare(b.product, "de"));
+    return s;
+  }
+
+  tabStyle(active) {
+    return "padding:8px 16px;border:none;border-radius:999px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;background:"
+      + (active ? "#1b1a17" : "transparent") + ";color:" + (active ? "#f4f2ee" : "#6f6a61");
+  }
+
+  renderVals() {
+    const all = this.data();
+    const list = this.filtered();
+    const isList = this.state.view === "list";
+    const counts = {};
+    all.forEach((o) => { if (isList && this.isPast(o)) return; if (!this.state.onlyActive || o.expired || this.isActive(o)) counts[o.store] = (counts[o.store] || 0) + 1; });
+    const stores = [...new Set(all.map((o) => o.store).filter(Boolean))].sort();
+    const departments = [...new Set(all.map((o) => o.department).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
+
+    const sorted = this.sortList(list);
+    const shown = isList ? sorted.slice(0, this.state.limit) : sorted;
+    const groups = isList ? this.buildGroups(shown) : [];
+    const compareGroups = isList ? [] : this.buildCompare(list);
+    const rest = sorted.length - shown.length;
+
+    return {
+      isList, isCompare: !isList,
+      isEmpty: this.state.ready && (isList ? sorted.length === 0 : compareGroups.length === 0),
+      q: this.state.q, dept: this.state.dept, sortMode: this.state.sortMode, groupBy: this.state.groupBy,
+      updatedLabel: this.state.updated
+        ? "Stand " + new Date(this.state.updated).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
+        : (this.state.ready ? "" : "lädt Angebote …"),
+      tabListStyle: this.tabStyle(isList),
+      tabCompareStyle: this.tabStyle(!isList),
+      resultCount: isList ? sorted.length : compareGroups.length,
+      resultNoun: isList ? "Angebote" : "Produkte bei mindestens 2 Märkten",
+      contextLabel: isList
+        ? (rest > 0 ? shown.length + " angezeigt" : "vollständig")
+        : "Vergleich nach Grundpreis",
+      groups, compareGroups,
+      hasMore: isList && rest > 0,
+      moreLabel: rest > 0 ? "Weitere " + Math.min(rest, 240) + " Angebote laden" : "",
+      storeChips: stores.map((s) => {
+        const on = !this.state.off[s];
+        return {
+          name: s, count: counts[s] || 0, dot: on ? this.storeColor(s) : "#c9c1b2",
+          style: "display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:500;border:1px solid "
+            + (on ? "#1b1a17" : "#ddd7cb") + ";background:" + (on ? "#fff" : "transparent") + ";color:" + (on ? "#1b1a17" : "#a8a196"),
+          toggle: () => this.setState((st) => ({ off: { ...st.off, [s]: !st.off[s] }, limit: 240 })),
+        };
+      }),
+      departments,
+      activeToggleLabel: this.state.onlyActive ? "Nur aktuell gültige" : "Auch kommende & alte",
+      activeToggleStyle: "display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;cursor:pointer;font-size:13px;border:1px solid "
+        + (this.state.onlyActive ? "oklch(0.52 0.11 150)" : "#ddd7cb") + ";background:" + (this.state.onlyActive ? "#e9f0ea" : "transparent")
+        + ";color:" + (this.state.onlyActive ? "#2c6e49" : "#6f6a61"),
+      toggleActive: () => this.setState((st) => ({ onlyActive: !st.onlyActive, limit: 240 })),
+      onSearch: (e) => this.setState({ q: e.target.value, limit: 240 }),
+      onDept: (e) => this.setState({ dept: e.target.value, limit: 240 }),
+      onSort: (e) => this.setState({ sortMode: e.target.value }),
+      onGroup: (e) => this.setState({ groupBy: e.target.value }),
+      showList: () => this.setState({ view: "list" }),
+      showCompare: () => this.setState({ view: "compare" }),
+      showMore: () => this.setState((st) => ({ limit: st.limit + 240 })),
+      reset: () => this.setState({ q: "", dept: "", off: {}, onlyActive: true, sortMode: "ref-asc", groupBy: "week", limit: 240 }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

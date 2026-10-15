@@ -1,0 +1,39 @@
+services:
+  web:
+    build: .
+    command: python3 -m http.server 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    working_dir: /app
+    restart: unless-stopped
+
+  # Aktualisiert die Angebote automatisch im Hintergrund, alle
+  # FETCH_INTERVAL_SECONDS (Standard: 1x taeglich). Laeuft dauerhaft mit
+  # `docker compose up -d`, kein Cron/System-Scheduler noetig.
+  scheduler:
+    build: .
+    command: >
+      sh -c "while true; do
+        python3 fetch_angebote.py;
+        echo \"Naechster Abruf in $${FETCH_INTERVAL_SECONDS:-86400}s...\";
+        sleep $${FETCH_INTERVAL_SECONDS:-86400};
+      done"
+    environment:
+      - FETCH_INTERVAL_SECONDS=${FETCH_INTERVAL_SECONDS:-86400}
+    volumes:
+      - .:/app
+    working_dir: /app
+    restart: unless-stopped
+
+  # Einmaliger manueller Abruf on demand, z.B. wenn man nicht auf den
+  # naechsten Scheduler-Durchlauf warten will:
+  #   docker compose --profile fetch run --rm fetch
+  fetch:
+    build: .
+    command: python3 fetch_angebote.py
+    volumes:
+      - .:/app
+    working_dir: /app
+    profiles: ["fetch"]
